@@ -73,15 +73,33 @@ window.addEventListener('offline', updateOnline);
 function updateOnline(){ offlineBanner.classList.toggle('hidden', navigator.onLine); }
 
 async function boot(){
-  setTheme(currentTheme()); updateOnline();
-  if (!state.sessionToken) return renderLogin();
+  setTheme(currentTheme());
+  updateOnline();
   renderLoadingShell();
+
+  const hadStoredSession = Boolean(state.sessionToken);
+  const tokenToTry = state.sessionToken || 'DEV_MODE';
+
   try {
-    const data = await api('auth.session', {}, state.sessionToken);
+    const data = await api('auth.session', {}, tokenToTry);
+    state.sessionToken = tokenToTry;
     state.user = data.user;
     await enterApp();
   } catch (err) {
-    localStorage.removeItem(CONFIG.SESSION_KEY); state.sessionToken=''; state.user=null; renderLogin(err.message.includes('Konfigurasi') ? err.message : 'Sesi perlu diperbarui. Silakan masuk kembali.');
+    if (hadStoredSession) {
+      localStorage.removeItem(CONFIG.SESSION_KEY);
+      state.sessionToken = '';
+      state.user = null;
+      return renderLogin(
+        err.message.includes('Konfigurasi')
+          ? err.message
+          : 'Sesi perlu diperbarui. Silakan masuk kembali.'
+      );
+    }
+
+    state.sessionToken = '';
+    state.user = null;
+    return renderLogin();
   }
 }
 
@@ -138,7 +156,22 @@ function renderShell(){
   renderIcons();
 }
 
-async function logout(){ try{ await api('auth.logout',{},state.sessionToken); }catch(_){} localStorage.removeItem(CONFIG.SESSION_KEY); state.sessionToken=''; state.user=null; location.hash=''; renderLogin(); }
+async function logout(){
+  if (state.sessionToken === 'DEV_MODE') {
+    toast('Mode Pengembangan aktif. Login Google sedang dilewati sementara.', 'info');
+    return;
+  }
+
+  try {
+    await api('auth.logout', {}, state.sessionToken);
+  } catch (_) {}
+
+  localStorage.removeItem(CONFIG.SESSION_KEY);
+  state.sessionToken = '';
+  state.user = null;
+  location.hash = '';
+  renderLogin();
+}
 
 function openMobileMenu(){
   const routes=Object.keys(ROUTES).filter(r=>r!=='dashboard'&&r!=='pos'&&r!=='sales'&&r!=='inventory'&&(!ROUTES[r].owner||roleOwner()));
