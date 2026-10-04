@@ -75,32 +75,20 @@ function updateOnline(){ offlineBanner.classList.toggle('hidden', navigator.onLi
 async function boot(){
   setTheme(currentTheme());
   updateOnline();
+
+  // DEV MODE SEMENTARA:
+  // Google Login dilewati sepenuhnya di frontend.
+  state.sessionToken = 'DEV_MODE';
+  state.user = {
+    userId: 'DEV_OWNER',
+    email: 'gritzsupply@gmail.com',
+    name: 'GRITZ SUPPLY',
+    role: 'OWNER',
+    status: 'ACTIVE'
+  };
+
   renderLoadingShell();
-
-  const hadStoredSession = Boolean(state.sessionToken);
-  const tokenToTry = state.sessionToken || 'DEV_MODE';
-
-  try {
-    const data = await api('auth.session', {}, tokenToTry);
-    state.sessionToken = tokenToTry;
-    state.user = data.user;
-    await enterApp();
-  } catch (err) {
-    if (hadStoredSession) {
-      localStorage.removeItem(CONFIG.SESSION_KEY);
-      state.sessionToken = '';
-      state.user = null;
-      return renderLogin(
-        err.message.includes('Konfigurasi')
-          ? err.message
-          : 'Sesi perlu diperbarui. Silakan masuk kembali.'
-      );
-    }
-
-    state.sessionToken = '';
-    state.user = null;
-    return renderLogin();
-  }
+  await enterApp();
 }
 
 function renderLogin(error=''){
@@ -157,20 +145,7 @@ function renderShell(){
 }
 
 async function logout(){
-  if (state.sessionToken === 'DEV_MODE') {
-    toast('Mode Pengembangan aktif. Login Google sedang dilewati sementara.', 'info');
-    return;
-  }
-
-  try {
-    await api('auth.logout', {}, state.sessionToken);
-  } catch (_) {}
-
-  localStorage.removeItem(CONFIG.SESSION_KEY);
-  state.sessionToken = '';
-  state.user = null;
-  location.hash = '';
-  renderLogin();
+  toast('Mode Pengembangan aktif. Login Google sedang dilewati sementara.', 'info');
 }
 
 function openMobileMenu(){
